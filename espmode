@@ -1,0 +1,33 @@
+-- Script to highlight all players in the game
+
+-- Function to highlight a player's character
+local function highlightPlayer(player)
+    -- Ensure the player has a character
+    local character = player.Character
+    if character and character:FindFirstChild("Humanoid") then
+        -- Create a Highlight instance
+        local highlight = Instance.new("Highlight")
+        highlight.Name = "PlayerHighlight"
+        highlight.Parent = character
+        highlight.Adornee = character
+        highlight.FillColor = Color3.fromRGB(255, 0, 0)  -- Green color, change as needed
+        highlight.FillTransparency = 0.4  -- Adjust transparency of the highlight
+        highlight.OutlineColor = Color3.fromRGB(0, 0, 255)  -- White outline
+        highlight.OutlineTransparency = 0.6  -- Adjust outline transparency
+    end
+end
+
+-- When a player joins the game, highlight their character
+game.Players.PlayerAdded:Connect(function(player)
+    player.CharacterAdded:Connect(function(character)
+        -- Highlight the player once their character is added
+        highlightPlayer(player)
+    end)
+end)
+
+-- Highlight players already in the game when the script runs
+for _, player in pairs(game.Players:GetPlayers()) do
+    if player.Character then
+        highlightPlayer(player)
+    end
+end
