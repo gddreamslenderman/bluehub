@@ -1,33 +1,88 @@
--- LocalScript in StarterPlayer -> StarterPlayerScripts
+-- Script for highlighting players with a toggle feature
+
+-- Place this script in ServerScriptService
 
 local Players = game:GetService("Players")
 
--- Function to create a highlight for a player
-local function createHighlight(player)
-    -- Ensure the character is loaded
-    if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+-- A table to store the Highlight objects for each player
+local playerHighlights = {}
+
+-- Variable to toggle highlighting on or off
+local isHighlightEnabled = true  -- Set to false to disable highlighting
+
+-- Function to highlight a player
+local function highlightPlayer(player)
+    if player.Character then
+        -- Create the Highlight object
+        local character = player.Character
         local highlight = Instance.new("Highlight")
-        highlight.Parent = player.Character
-        highlight.Adornee = player.Character
-        highlight.FillColor = Color3.fromRGB(255, 0, 0)  -- Set highlight color to red
-        highlight.FillTransparency = 0.5  -- Set transparency of the highlight
-        highlight.OutlineColor = Color3.fromRGB(0, 0, 0)  -- Set outline color to black
-        highlight.OutlineTransparency = 0  -- Set outline transparency
+        highlight.Parent = character
+        highlight.Name = "PlayerHighlight"  -- Name it for easy removal
+
+        -- Customize the appearance of the highlight
+        highlight.FillColor = Color3.fromRGB(255, 0, 0)  -- Red color
+        highlight.OutlineColor = Color3.fromRGB(255, 0, 0)  -- Black outline
+        highlight.OutlineTransparency = 0.5
+        highlight.FillTransparency = 0.5
+        
+        -- Store the highlight in the table
+        playerHighlights[player] = highlight
     end
 end
 
--- Loop through all players and create highlights
+-- Function to remove the highlight from a player
+local function removeHighlight(player)
+    if playerHighlights[player] then
+        playerHighlights[player]:Destroy()
+        playerHighlights[player] = nil
+    end
+end
+
+-- Function to toggle highlighting on or off
+local function toggleHighlighting()
+    isHighlightEnabled = not isHighlightEnabled  -- Toggle the value
+
+    -- Go through all players and either add or remove highlights
+    for _, player in pairs(Players:GetPlayers()) do
+        if player.Character then
+            if isHighlightEnabled then
+                highlightPlayer(player)
+            else
+                removeHighlight(player)
+            end
+        end
+    end
+end
+
+-- Connect to PlayerAdded and PlayerRemoving events
 Players.PlayerAdded:Connect(function(player)
-    player.CharacterAdded:Connect(function(character)
-        -- Give time for character parts to load
-        wait(1)
-        createHighlight(player)
+    player.CharacterAdded:Connect(function()
+        if isHighlightEnabled then
+            highlightPlayer(player)
+        end
     end)
 end)
 
--- Also apply highlights to existing players when the script starts
-for _, player in ipairs(Players:GetPlayers()) do
+Players.PlayerRemoving:Connect(function(player)
+    removeHighlight(player)
+end)
+
+-- Initial highlight for all players already in the game
+for _, player in pairs(Players:GetPlayers()) do
     if player.Character then
-        createHighlight(player)
+        if isHighlightEnabled then
+            highlightPlayer(player)
+        end
     end
 end
+
+-- Create a RemoteEvent for toggling from the client (optional)
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local toggleEvent = Instance.new("RemoteEvent")
+toggleEvent.Name = "ToggleHighlightEvent"
+toggleEvent.Parent = ReplicatedStorage
+
+-- Listen for the toggle event from the client
+toggleEvent.OnServerEvent:Connect(function(player)
+    toggleHighlighting()
+end)
