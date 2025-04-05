@@ -1,86 +1,76 @@
--- Script for highlighting players with a toggle feature
-
--- Place this script in ServerScriptService
-
 local Players = game:GetService("Players")
 
--- A table to store the Highlight objects for each player
-local playerHighlights = {}
-
--- Variable to toggle highlighting on or off
-local isHighlightEnabled = true  -- Set to false to disable highlighting
-
--- Function to highlight a player
-local function highlightPlayer(player)
-    if player.Character then
-        -- Create the Highlight object
-        local character = player.Character
-        local highlight = Instance.new("Highlight")
-        highlight.Parent = character
-        highlight.Name = "PlayerHighlight"  -- Name it for easy removal
-
-        -- Customize the appearance of the highlight
-        highlight.FillColor = Color3.fromRGB(255, 0, 0)  -- Red color
-        highlight.OutlineColor = Color3.fromRGB(255, 0, 0)  -- Black outline
-        highlight.OutlineTransparency = 0.5
-        highlight.FillTransparency = 0.5
-        
-        -- Store the highlight in the table
-        playerHighlights[player] = highlight
-    end
+-- Add highlight to character
+local function addHighlight(character)
+	if not character:FindFirstChild("Highlight") then
+		local highlight = Instance.new("Highlight")
+		highlight.Name = "Highlight"
+		highlight.FillColor = Color3.fromRGB(255, 0, 0)
+		highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+		highlight.FillTransparency = 0.5
+		highlight.OutlineTransparency = 0
+		highlight.Adornee = character
+		highlight.Parent = character
+	end
 end
 
--- Function to remove the highlight from a player
-local function removeHighlight(player)
-    if playerHighlights[player] then
-        playerHighlights[player]:Destroy()
-        playerHighlights[player] = nil
-    end
+-- Add nametag with numeric health meter
+local function addNameTag(character, player)
+	local head = character:WaitForChild("Head", 5)
+	local humanoid = character:WaitForChild("Humanoid", 5)
+	if not head or not humanoid then return end
+
+	if not head:FindFirstChild("NameTag") then
+		local tag = Instance.new("BillboardGui")
+		tag.Name = "NameTag"
+		tag.Size = UDim2.new(0, 100, 0, 50)
+		tag.StudsOffset = Vector3.new(0, 2.5, 0)
+		tag.AlwaysOnTop = true
+		tag.Adornee = head
+		tag.Parent = head
+
+		local nameLabel = Instance.new("TextLabel")
+		nameLabel.Size = UDim2.new(1, 0, 1, 0)
+		nameLabel.BackgroundTransparency = 1
+		nameLabel.TextScaled = true
+		nameLabel.Font = Enum.Font.SourceSansBold
+		nameLabel.TextColor3 = Color3.fromRGB(0, 255, 0) -- Green
+		nameLabel.TextStrokeTransparency = 0.5
+		nameLabel.Parent = tag
+
+		-- Update health number live
+		local function updateName()
+			local currentHealth = math.floor(humanoid.Health)
+			local maxHealth = math.floor(humanoid.MaxHealth)
+			nameLabel.Text = string.format("%s [%d / %d]", player.Name, currentHealth, maxHealth)
+		end
+
+		humanoid.HealthChanged:Connect(updateName)
+		updateName()
+	end
 end
 
--- Function to toggle highlighting on or off
-local function toggleHighlighting()
-    isHighlightEnabled = not isHighlightEnabled  -- Toggle the value
+-- Set up visuals for character
+local function setupCharacter(player)
+	local function apply(character)
+		addHighlight(character)
+		addNameTag(character, player)
+	end
 
-    -- Go through all players and either add or remove highlights
-    for _, player in pairs(Players:GetPlayers()) do
-        if player.Character then
-            if isHighlightEnabled then
-                highlightPlayer(player)
-            else
-                removeHighlight(player)
-            end
-        end
-    end
+	if player.Character then
+		apply(player.Character)
+	end
+
+	player.CharacterAdded:Connect(apply)
 end
 
--- Connect to PlayerAdded and PlayerRemoving events
-Players.PlayerAdded:Connect(function(player)
-    player.CharacterAdded:Connect(function()
-        if isHighlightEnabled then
-            highlightPlayer(player)
-        end
-    end)
-end)
-
-Players.PlayerRemoving:Connect(function(player)
-    removeHighlight(player)
-end)
-
--- Initial highlight for all players already in the game
-for _, player in pairs(Players:GetPlayers()) do
-    if player.Character then
-        if isHighlightEnabled then
-            highlightPlayer(player)
-        end
-    end
+-- Apply to all players
+for _, player in ipairs(Players:GetPlayers()) do
+	setupCharacter(player)
 end
 
--- Create a RemoteEvent for toggling from the client (optional)
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local toggleEvent = Instance.new("RemoteEvent")
-toggleEvent.Name = "ToggleHighlightEvent"
-toggleEvent.Parent = ReplicatedStorage
+Players.PlayerAdded:Connect(setupCharacter)
+
 
 -- Listen for the toggle event from the client
 toggleEvent.OnServerEvent:Connect(function(player)
