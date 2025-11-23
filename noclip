@@ -1,0 +1,72 @@
+-- Simple Toggle Noclip Script (execute again to enable, execute again to disable)
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoid = character:WaitForChild("Humanoid")
+local rootPart = character:WaitForChild("HumanoidRootPart")
+
+-- Toggle variable
+_G.NoclipEnabled = _G.NoclipEnabled or false
+
+-- Function to enable/disable noclip
+local function toggleNoclip()
+    _G.NoclipEnabled = not _G.NoclipEnabled
+
+    if _G.NoclipEnabled then
+        print("Noclip: ON")
+        
+        -- Stepped connection for noclip
+        _G.NoclipConnection = RunService.Stepped:Connect(function()
+            if not _G.NoclipEnabled then return end
+            
+            for _, part in pairs(character:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    part.CanCollide = false
+                end
+            end
+            humanoid:ChangeState(Enum.HumanoidStateType.Physics) -- Helps with flying feel
+        end)
+        
+    else
+        print("Noclip: OFF")
+        
+        -- Disconnect the loop
+        if _G.NoclipConnection then
+            _G.NoclipConnection:Disconnect()
+            _G.NoclipConnection = nil
+        end
+        
+        -- Restore collision (optional, usually resets on respawn anyway)
+        for _, part in pairs(character:GetDescendants()) do
+            if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
+                part.CanCollide = true
+            end
+        end
+    end
+end
+
+-- Handle character respawn (important!)
+player.CharacterAdded:Connect(function(newChar)
+    character = newChar
+    humanoid = newChar:WaitForChild("Humanoid")
+    rootPart = newChar:WaitForChild("HumanoidRootPart")
+    
+    -- If noclip was enabled before death, re-enable it
+    if _G.NoclipEnabled and _G.NoclipConnection then
+        _G.NoclipConnection:Disconnect()
+    end
+    if _G.NoclipEnabled then
+        task.wait(0.5) -- small delay to make sure character fully loads
+        toggleNoclip() -- re-enable
+        toggleNoclip() -- calls twice? No — we just force enable
+        -- Better way:
+        _G.NoclipEnabled = false
+        toggleNoclip() -- this will turn it on again
+    end
+end)
+
+-- Toggle it now
+toggleNoclip()
