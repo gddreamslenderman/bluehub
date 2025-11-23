@@ -1,0 +1,62 @@
+-- Disco Fog Toggle Script (Rainbow Cycling Fog!)
+-- Execute → Disco Fog ON (flashy rainbow fog everywhere!) | Re-execute → OFF (restore original)
+-- Cycles colors super fast + pulses fog density | Local visuals only | No lag!
+
+local Lighting = game:GetService("Lighting")
+local RunService = game:GetService("RunService")
+
+-- Toggle state & originals
+_G.DiscoFogEnabled = _G.DiscoFogEnabled or false
+_G.OriginalFogColor = _G.OriginalFogColor or Lighting.FogColor
+_G.OriginalFogEnd = _G.OriginalFogEnd or Lighting.FogEnd
+_G.OriginalFogStart = _G.OriginalFogStart or Lighting.FogStart
+
+local discoConnection
+
+-- Toggle function
+local function toggleDiscoFog()
+    _G.DiscoFogEnabled = not _G.DiscoFogEnabled
+    
+    if _G.DiscoFogEnabled then
+        print("🟢 Disco Fog: ON - Rainbow party mode! 🌈💃")
+        
+        -- Store originals (first run only)
+        _G.OriginalFogColor = Lighting.FogColor
+        _G.OriginalFogEnd = Lighting.FogEnd
+        _G.OriginalFogStart = Lighting.FogStart
+        
+        -- Heartbeat for smooth disco cycle
+        discoConnection = RunService.Heartbeat:Connect(function()
+            if not _G.DiscoFogEnabled then return end
+            
+            -- Rainbow hue cycle (fast: full rainbow ~2 seconds)
+            local hue = (tick() * 0.5) % 1
+            local fogColor = Color3.fromHSV(hue, 1, 1)
+            
+            -- Pulse fog density for disco pulse effect
+            local pulse = (math.sin(tick() * 8) + 1) / 2  -- 0 to 1
+            local fogEnd = 150 + pulse * 100  -- 150-250 studs visibility
+            
+            Lighting.FogColor = fogColor
+            Lighting.FogEnd = fogEnd
+            Lighting.FogStart = 0  -- Full fog from ground
+        end)
+        
+    else
+        print("🔴 Disco Fog: OFF - Back to normal")
+        
+        -- Stop cycle
+        if discoConnection then
+            discoConnection:Disconnect()
+            discoConnection = nil
+        end
+        
+        -- Restore originals instantly
+        Lighting.FogColor = _G.OriginalFogColor
+        Lighting.FogEnd = _G.OriginalFogEnd
+        Lighting.FogStart = _G.OriginalFogStart
+    end
+end
+
+-- Initial toggle
+toggleDiscoFog()
