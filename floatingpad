@@ -1,0 +1,97 @@
+-- Toggle Floating Pad Script (Rainbow Disco Pad under feet!)
+-- Execute → Pad ON (float forever, no fall, fly by jumping/walking!) | Re-execute → OFF
+-- Visual glowing platform follows perfectly | Respawn-safe | Party colors! 🌈✨
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
+
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoid = character:WaitForChild("Humanoid")
+local rootPart = character:WaitForChild("HumanoidRootPart")
+
+-- Toggle state
+_G.FloatingPadEnabled = _G.FloatingPadEnabled or false
+_G.PadConnection = nil
+_G.FloatingPad = nil
+
+-- Toggle function
+local function toggleFloatingPad()
+    _G.FloatingPadEnabled = not _G.FloatingPadEnabled
+    
+    if _G.FloatingPadEnabled then
+        print("🟢 Floating Pad: ON - Disco platform activated! 🌈🚀")
+        
+        -- Create rainbow pad
+        _G.FloatingPad = Instance.new("Part")
+        _G.FloatingPad.Name = "FloatingPad_" .. player.Name
+        _G.FloatingPad.Parent = Workspace
+        _G.FloatingPad.Anchored = true
+        _G.FloatingPad.CanCollide = true
+        _G.FloatingPad.Size = Vector3.new(12, 0.5, 12)
+        _G.FloatingPad.Material = Enum.Material.ForceField
+        _G.FloatingPad.Shape = Enum.PartType.Block
+        _G.FloatingPad.TopSurface = Enum.SurfaceType.Smooth
+        _G.FloatingPad.BottomSurface = Enum.SurfaceType.Smooth
+        _G.FloatingPad.Transparency = 0.2  -- Slight glow thru
+        
+        -- Smooth follow + rainbow cycle loop
+        _G.PadConnection = RunService.Heartbeat:Connect(function()
+            if not _G.FloatingPadEnabled then return end
+            if not character or not character.Parent then return end
+            
+            local currentRoot = character:FindFirstChild("HumanoidRootPart")
+            local currentHum = character:FindFirstChild("Humanoid")
+            if currentRoot and currentHum then
+                -- Perfect under-feet position
+                local offset = CFrame.new(0, -(currentHum.HipHeight + 0.25), 0)
+                _G.FloatingPad.CFrame = currentRoot.CFrame * offset
+                
+                -- Disco rainbow!
+                local hue = (tick() * 3) % 1
+                _G.FloatingPad.Color = Color3.fromHSV(hue, 1, 1)
+            end
+        end)
+        
+    else
+        print("🔴 Floating Pad: OFF - Grounded!")
+        
+        -- Cleanup
+        if _G.PadConnection then
+            _G.PadConnection:Disconnect()
+            _G.PadConnection = nil
+        end
+        if _G.FloatingPad then
+            _G.FloatingPad:Destroy()
+            _G.FloatingPad = nil
+        end
+    end
+end
+
+-- Respawn handler (auto-recreate pad if was ON)
+player.CharacterAdded:Connect(function(newChar)
+    character = newChar
+    humanoid = newChar:WaitForChild("Humanoid")
+    rootPart = newChar:WaitForChild("HumanoidRootPart")
+    
+    -- Cleanup old
+    if _G.PadConnection then
+        _G.PadConnection:Disconnect()
+        _G.PadConnection = nil
+    end
+    if _G.FloatingPad then
+        _G.FloatingPad:Destroy()
+        _G.FloatingPad = nil
+    end
+    
+    -- Re-enable if was ON
+    if _G.FloatingPadEnabled then
+        task.wait(0.5)
+        _G.FloatingPadEnabled = false
+        toggleFloatingPad()  -- Flips back to ON
+    end
+end)
+
+-- Initial toggle
+toggleFloatingPad()
