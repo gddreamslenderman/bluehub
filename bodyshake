@@ -1,0 +1,92 @@
+-- Toggle Body Shake Script (Full Character Jitter!)
+-- Execute → Body Shake ON (rapid body wobble, impossible to hit!) | Re-execute → OFF
+-- Respawn-safe | Multi-axis chaos shake | Troll snipers forever! 😈
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoid = character:WaitForChild("Humanoid")
+local rootPart = character:WaitForChild("HumanoidRootPart")
+
+-- Toggle state
+_G.BodyShakeEnabled = _G.BodyShakeEnabled or false
+_G.ShakeConnection = nil
+
+-- Shake params (crazy but controllable)
+local SHAKE_SPEED1 = 25  -- Primary freq
+local SHAKE_SPEED2 = 32  -- Secondary for chaos
+local SHAKE_SPEED3 = 19  -- Tertiary
+local SHAKE_INTENSITY = 0.35  -- Radians max (~20° jitter)
+
+-- Toggle function
+local function toggleBodyShake()
+    _G.BodyShakeEnabled = not _G.BodyShakeEnabled
+    
+    local currentHumanoid = character:FindFirstChild("Humanoid")
+    local currentRoot = character:FindFirstChild("HumanoidRootPart")
+    
+    if _G.BodyShakeEnabled then
+        print("🟢 Body Shake: ON - Full jitter mode! 🤪💥")
+        
+        if currentHumanoid then
+            currentHumanoid.AutoRotate = false  -- Unlock for shake freedom
+        end
+        
+        -- RenderStepped for buttery smooth (pre-render)
+        _G.ShakeConnection = RunService.RenderStepped:Connect(function()
+            if not _G.BodyShakeEnabled then return end
+            if not character or not character.Parent then return end
+            
+            local shakeRoot = character:FindFirstChild("HumanoidRootPart")
+            if shakeRoot then
+                local time = tick()
+                -- 3D chaos: Yaw (twist) + Pitch (nod) + Roll (tilt)
+                local yawShake = math.sin(time * SHAKE_SPEED1) * SHAKE_INTENSITY
+                local pitchShake = math.sin(time * SHAKE_SPEED2) * SHAKE_INTENSITY * 0.8
+                local rollShake = math.cos(time * SHAKE_SPEED3) * SHAKE_INTENSITY * 0.6
+                
+                -- Apply relative shakes (hitbox goes WILD)
+                shakeRoot.CFrame = shakeRoot.CFrame * CFrame.Angles(pitchShake, yawShake, rollShake)
+            end
+        end)
+        
+    else
+        print("🔴 Body Shake: OFF - Steady body")
+        
+        -- Stop shake
+        if _G.ShakeConnection then
+            _G.ShakeConnection:Disconnect()
+            _G.ShakeConnection = nil
+        end
+        
+        -- Restore rotation
+        if currentHumanoid then
+            currentHumanoid.AutoRotate = true
+        end
+    end
+end
+
+-- Respawn handler (auto-re-enable)
+player.CharacterAdded:Connect(function(newChar)
+    character = newChar
+    humanoid = newChar:WaitForChild("Humanoid")
+    rootPart = newChar:WaitForChild("HumanoidRootPart")
+    
+    -- Cleanup
+    if _G.ShakeConnection then
+        _G.ShakeConnection:Disconnect()
+        _G.ShakeConnection = nil
+    end
+    
+    -- Re-apply if enabled
+    if _G.BodyShakeEnabled then
+        task.wait(0.5)
+        _G.BodyShakeEnabled = false
+        toggleBodyShake()  -- Flips to ON
+    end
+end)
+
+-- Initial toggle
+toggleBodyShake()
