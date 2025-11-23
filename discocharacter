@@ -1,0 +1,99 @@
+-- FIXED DISCO EVERYONE (ALL PLAYERS DISCO AT ONCE!)
+-- Execute → EVERY player in server becomes disco rave! 
+-- Re-execute → ALL disco OFF completely (no leftovers!)
+-- Server-side look (everyone sees it) + rainbow glow + strobe lights!
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+
+_G.GlobalDiscoEnabled = _G.GlobalDiscoEnabled or false
+_G.DiscoConnections = _G.DiscoConnections or {}
+_G.DiscoObjects = _G.DiscoObjects or {}
+
+local function cleanupAllDisco()
+    -- Stop all loops
+    for _, conn in pairs(_G.DiscoConnections) do
+        if conn then conn:Disconnect() end
+    end
+    _G.DiscoConnections = {}
+    
+    -- Destroy every disco object ever created
+    for _, obj in pairs(_G.DiscoObjects) do
+        if obj and obj.Parent then
+            obj:Destroy()
+        end
+    end
+    _G.DiscoObjects = {}
+end
+
+local function makePlayerDisco(plr)
+    local char = plr.Character or plr.CharacterAdded:Wait()
+    if not char then return end
+    
+    -- Rainbow Highlight (visible to everyone!)
+    local hl = Instance.new("Highlight")
+    hl.Adornee = char
+    hl.FillTransparency = 0.3
+    hl.OutlineTransparency = 0
+    hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+    hl.Parent = char
+    table.insert(_G.DiscoObjects, hl)
+    
+    -- Strobe PointLight
+    local torso = char:FindFirstChild("UpperTorso") or char:FindFirstChild("Torso") or char:FindFirstChild("HumanoidRootPart")
+    if torso then
+        local light = Instance.new("PointLight")
+        light.Range = 30
+        light.Brightness = 6
+        light.Parent = torso
+        table.insert(_G.DiscoObjects, light)
+    end
+    
+    -- Rainbow + strobe loop
+    local conn = RunService.Heartbeat:Connect(function()
+        if not _G.GlobalDiscoEnabled then return end
+        local time = tick()
+        local hue = (time * 2.5) % 1
+        local color = Color3.fromHSV(hue, 1, 1)
+        local pulse = 3 + (math.sin(time * 15) + 1) * 2
+        
+        if hl and hl.Parent then
+            hl.FillColor = color
+            hl.OutlineColor = color
+        end
+        if torso and torso:FindFirstChild("PointLight") then
+            torso.PointLight.Color = color
+            torso.PointLight.Brightness = pulse
+        end
+    end)
+    table.insert(_G.DiscoConnections, conn)
+end
+
+local function toggleGlobalDisco()
+    _G.GlobalDiscoEnabled = not _G.GlobalDiscoEnabled
+    
+    if _G.GlobalDiscoEnabled then
+        print("GLOBAL DISCO: ON - THE WHOLE SERVER IS A RAVE!!!")
+        cleanupAllDisco() -- fresh start
+        
+        -- Existing players
+        for _, plr in pairs(Players:GetPlayers()) do
+            makePlayerDisco(plr)
+        end
+        
+        -- New players
+        Players.PlayerAdded:Connect(function(plr)
+            if not _G.GlobalDiscoEnabled then return end
+            plr.CharacterAdded:Wait()
+            task.wait(1)
+            makePlayerDisco(plr)
+        end)
+        
+    else
+        print("Global Disco: OFF - party over :(")
+        cleanupAllDisco()
+    end
+end
+
+-- Start the rave!
+toggleGlobalDisco()
