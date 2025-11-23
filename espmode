@@ -1,78 +1,90 @@
+-- FIXED Toggle Player Highlights (ESP) Script
+-- Execute → Highlights ALL players ON | Re-execute → OFF (NOW ACTUALLY DISAPPEARS!)
+-- Respawn-safe | Auto-recreates | Red enemies, Green teammates | Through walls!
+
 local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
 
--- Add highlight to character
-local function addHighlight(character)
-	if not character:FindFirstChild("Highlight") then
-		local highlight = Instance.new("Highlight")
-		highlight.Name = "Highlight"
-		highlight.FillColor = Color3.fromRGB(255, 0, 0)
-		highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
-		highlight.FillTransparency = 0.5
-		highlight.OutlineTransparency = 0
-		highlight.Adornee = character
-		highlight.Parent = character
-	end
+local player = Players.LocalPlayer
+_G.HighlightEnabled = _G.HighlightEnabled or false
+
+-- Global storage
+_G.Highlights = _G.Highlights or {}
+_G.ESPConnection = _G.ESPConnection
+
+-- Create/update highlight for a player
+local function updateHighlight(plr)
+    if plr == player then return end
+    
+    local char = plr.Character
+    if not char or not char.Parent then return end
+    
+    -- Remove old if exists
+    local oldHl = _G.Highlights[plr]
+    if oldHl then oldHl:Destroy() end
+    
+    local highlight = Instance.new("Highlight")
+    highlight.Name = "ESPHighlight"
+    highlight.Parent = char
+    highlight.Adornee = char
+    highlight.FillTransparency = 1  -- Outline only
+    highlight.OutlineTransparency = 0
+    highlight.OutlineColor = Color3.new(1, 1, 1)  -- White default
+    
+    -- Team colors
+    if plr.Team then
+        if plr.Team == player.Team then
+            highlight.OutlineColor = Color3.new(0, 1, 0)  -- Green teammate
+        else
+            highlight.OutlineColor = Color3.new(1, 0, 0)  -- Red enemy
+        end
+    end
+    
+    _G.Highlights[plr] = highlight
 end
 
--- Add nametag with numeric health meter
-local function addNameTag(character, player)
-	local head = character:WaitForChild("Head", 5)
-	local humanoid = character:WaitForChild("Humanoid", 5)
-	if not head or not humanoid then return end
-
-	if not head:FindFirstChild("NameTag") then
-		local tag = Instance.new("BillboardGui")
-		tag.Name = "NameTag"
-		tag.Size = UDim2.new(0, 100, 0, 50)
-		tag.StudsOffset = Vector3.new(0, 2.5, 0)
-		tag.AlwaysOnTop = true
-		tag.Adornee = head
-		tag.Parent = head
-
-		local nameLabel = Instance.new("TextLabel")
-		nameLabel.Size = UDim2.new(1, 0, 1, 0)
-		nameLabel.BackgroundTransparency = 1
-		nameLabel.TextScaled = true
-		nameLabel.Font = Enum.Font.SourceSansBold
-		nameLabel.TextColor3 = Color3.fromRGB(0, 255, 0) -- Green
-		nameLabel.TextStrokeTransparency = 0.5
-		nameLabel.Parent = tag
-
-		-- Update health number live
-		local function updateName()
-			local currentHealth = math.floor(humanoid.Health)
-			local maxHealth = math.floor(humanoid.MaxHealth)
-			nameLabel.Text = string.format("%s [%d / %d]", player.Name, currentHealth, maxHealth)
-		end
-
-		humanoid.HealthChanged:Connect(updateName)
-		updateName()
-	end
+-- Toggle function (SIMPLE RUNSERVICE LOOP - foolproof!)
+local function toggleHighlights()
+    _G.HighlightEnabled = not _G.HighlightEnabled
+    
+    if _G.HighlightEnabled then
+        print("🟢 Player Highlights: ON - All players ESP (fixed)!")
+        
+        -- Heartbeat loop: updates EVERY frame → respawn-proof!
+        _G.ESPConnection = RunService.Heartbeat:Connect(function()
+            if not _G.HighlightEnabled then return end
+            
+            for _, plr in pairs(Players:GetPlayers()) do
+                updateHighlight(plr)
+            end
+        end)
+        
+    else
+        print("🔴 Player Highlights: OFF - All gone!")
+        
+        -- Stop loop
+        if _G.ESPConnection then
+            _G.ESPConnection:Disconnect()
+            _G.ESPConnection = nil
+        end
+        
+        -- DESTROY ALL highlights instantly (global table!)
+        for plr, hl in pairs(_G.Highlights) do
+            if hl and hl.Parent then
+                hl:Destroy()
+            end
+        end
+        _G.Highlights = {}
+    end
 end
 
--- Set up visuals for character
-local function setupCharacter(player)
-	local function apply(character)
-		addHighlight(character)
-		addNameTag(character, player)
-	end
-
-	if player.Character then
-		apply(player.Character)
-	end
-
-	player.CharacterAdded:Connect(apply)
-end
-
--- Apply to all players
-for _, player in ipairs(Players:GetPlayers()) do
-	setupCharacter(player)
-end
-
-Players.PlayerAdded:Connect(setupCharacter)
-
-
--- Listen for the toggle event from the client
-toggleEvent.OnServerEvent:Connect(function(player)
-    toggleHighlighting()
+-- Clean on player leave (always active)
+Players.PlayerRemoving:Connect(function(plr)
+    if _G.Highlights[plr] then
+        _G.Highlights[plr]:Destroy()
+        _G.Highlights[plr] = nil
+    end
 end)
+
+-- Initial toggle
+toggleHighlights()
