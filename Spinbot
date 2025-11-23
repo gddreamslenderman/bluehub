@@ -1,0 +1,68 @@
+-- SLOW Toggle Spinbot (chill spin)  
+-- Execute → Slow spin ON | Re-execute → OFF  
+-- Spins ~1 full rotation every 3 seconds (very chill, not dizzy)  
+-- Perfect for trolling, memes, or subtle hitbox spin  
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoid = character:WaitForChild("Humanoid")
+local rootPart = character:WaitForChild("HumanoidRootPart")
+
+_G.SlowSpinEnabled = _G.SlowSpinEnabled or false
+_G.SpinConn = nil
+
+-- Slow speed: 1 full rotation ≈ every 3 seconds
+local SPIN_SPEED = math.rad(120)  -- 120 degrees per second = smooth & slow
+
+local function toggleSlowSpin()
+    _G.SlowSpinEnabled = not _G.SlowSpinEnabled
+    
+    if _G.SlowSpinEnabled then
+        print("Slow Spinbot: ON (chill mode)")
+        
+        humanoid.AutoRotate = false
+        
+        _G.SpinConn = RunService.Heartbeat:Connect(function(dt)
+            if not _G.SlowSpinEnabled then return end
+            if not character or not character.Parent then return end
+            
+            local root = character:FindFirstChild("HumanoidRootPart")
+            if root then
+                root.CFrame = root.CFrame * CFrame.Angles(0, SPIN_SPEED * dt, 0)
+            end
+        end)
+        
+    else
+        print("Slow Spinbot: OFF")
+        
+        if _G.SpinConn then
+            _G.SpinConn:Disconnect()
+            _G.SpinConn = nil
+        end
+        
+        humanoid.AutoRotate = true
+    end
+end
+
+-- Respawn support
+player.CharacterAdded:Connect(function(newChar)
+    character = newChar
+    humanoid = newChar:WaitForChild("Humanoid")
+    rootPart = newChar:WaitForChild("HumanoidRootPart")
+    
+    if _G.SpinConn then
+        _G.SpinConn:Disconnect()
+    end
+    
+    if _G.SlowSpinEnabled then
+        task.wait(0.5)
+        _G.SlowSpinEnabled = false
+        toggleSlowSpin()  -- Re-enable
+    end
+end)
+
+-- Start
+toggleSlowSpin()
